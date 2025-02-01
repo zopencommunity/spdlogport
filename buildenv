@@ -1,6 +1,6 @@
 # Update bump details accordingly. Use bump check to confirm.
 # bump: spdlog-version /SPDLOG_VERSION="(.*)"/ https://github.com/gabime/spdlog.git|semver:*
-SPDLOG_VERSION="1.15.0" # Specify a stable release
+SPDLOG_VERSION="1.15.1" # Specify a stable release
 export ZOPEN_STABLE_TAG="v${SPDLOG_VERSION}"
 export ZOPEN_STABLE_URL="https://github.com/gabime/spdlog.git"
 export ZOPEN_STABLE_DEPS="zoslib cmake make coreutils check_python"
