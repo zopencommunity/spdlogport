@@ -43,6 +43,7 @@ jobs:
           else
             echo "Committer email does not match bump-action@github"
             echo "should_merge=false" >> $GITHUB_ENV
+          fi
 
       - name: Merge Pull Request
         if: env.should_merge == 'true'  # Only merge if email matches
