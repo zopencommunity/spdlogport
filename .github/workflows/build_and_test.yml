@@ -36,9 +36,11 @@ jobs:
         id: check-committer
         run: |
           echo "Checking committer email..."
-          COMMITTER_EMAIL=$(git log -1 --pretty=format:'%ae')
-          echo "Last committer email: $COMMITTER_EMAIL"
-          if [ "$COMMITTER_EMAIL" = "bump-action@github" ]; then
+          PR_COMMITTER_EMAIL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
+            | jq -r '.user.email')
+          echo "PR committer email: $PR_COMMITTER_EMAIL"
+          if [ "$PR_COMMITTER_EMAIL" = "bump-action@github" ]; then
             echo "Committer email matches bump-action@github"
             echo "should_merge=true" >> $GITHUB_ENV
           else
