@@ -4,6 +4,7 @@ permissions:
   contents: write
   statuses: write
   actions: read
+  pull-requests: write  # Add this permission to manage PR labels
 
 on:
   issue_comment:
@@ -20,5 +21,29 @@ on:
 jobs:
   build-and-test:
     if: (github.event.issue.pull_request && contains(github.event.comment.body, '/run tests')) || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request_target'
-    uses: zopencommunity/meta/.github/workflows/build_and_test.yml@test_automerge
+    uses: zopencommunity/meta/.github/workflows/build_and_test.yml@main
     secrets: inherit
+
+  add-label:
+    if: success()  # Runs only if the build-and-test job succeeds
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check if committer email is "bump-action@github"
+      id: check-committer
+      run: |
+        echo "Checking committer email..."
+        COMMITTER_EMAIL=$(git log -1 --pretty=format:'%ae')
+        if [ "$COMMITTER_EMAIL" = "bump-action@github" ]; then
+          echo "Committer email matches bump-action@github"
+          echo "should_add_label=true" >> $GITHUB_ENV
+        else
+          echo "Committer email does not match bump-action@github"
+          echo "should_add_label=false" >> $GITHUB_ENV
+        fi
+
+    - name: Add automerge label
+      if: env.should_add_label == 'true'  # Only add the label if the condition is met
+      uses: actions-ecosystem/action-add-labels@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        labels: automerge
