@@ -37,6 +37,7 @@ jobs:
         run: |
           echo "Checking committer email..."
           COMMITTER_EMAIL=$(git log -1 --pretty=format:'%ae')
+          echo "Last committer email: $COMMITTER_EMAIL"
           if [ "$COMMITTER_EMAIL" = "bump-action@github" ]; then
             echo "Committer email matches bump-action@github"
             echo "should_merge=true" >> $GITHUB_ENV
