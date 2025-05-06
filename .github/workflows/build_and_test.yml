@@ -23,13 +23,12 @@ jobs:
     uses: zopencommunity/meta/.github/workflows/build_and_test.yml@main
     secrets: inherit
 
-  merge-pr:
+  check-for-bump-PR:
     needs: build-and-test
-    if: success()
+    if: success()  # ✅ Only run if build-and-test succeeded
     runs-on: ubuntu-latest
     steps:
-      - name: Check if latest committer email is "bump-action@github"
-        id: check-committer
+      - name: Add "automerge" label if latest committer email is bump-action@github
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -49,36 +48,22 @@ jobs:
               pull_number: prNumber
             });
 
-            const latestCommit = commits[commits.length - 1];
-            const email = latestCommit.commit.committer.email;
-
-            console.log(`Latest commit email: ${email}`);
-
-            if (email === "bump-action@github") {
-              require('fs').appendFileSync(process.env.GITHUB_ENV, 'should_merge=true\n');
-            } else {
-              require('fs').appendFileSync(process.env.GITHUB_ENV, 'should_merge=false\n');
+            if (!commits.length) {
+              console.log("No commits found. Skipping.");
+              return;
             }
 
-      - name: Merge Pull Request
-        if: env.should_merge == 'true'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pr = context.payload.pull_request;
-            const { owner, repo } = context.repo;
-            const prNumber = pr.number;
+            const latestEmail = commits[commits.length - 1].commit.committer.email;
+            console.log(`Latest committer email: ${latestEmail}`);
 
-            const result = await github.rest.pulls.merge({
-              owner,
-              repo,
-              pull_number: prNumber,
-              merge_method: "squash"
-            });
-
-            if (result.data.merged) {
-              console.log(`✅ PR #${prNumber} merged successfully.`);
+            if (latestEmail === "bump-action@github") {
+              console.log("Email matches bump-action@github. Adding label.");
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: prNumber,
+                labels: ["automerge"]
+              });
             } else {
-              throw new Error(`❌ Failed to merge PR #${prNumber}: ${result.data.message}`);
+              console.log("Email does not match bump-action@github. Skipping label.");
             }
