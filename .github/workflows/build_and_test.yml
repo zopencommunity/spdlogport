@@ -4,12 +4,11 @@ permissions:
   contents: write
   statuses: write
   actions: read
-  pull-requests: write  # Add this permission to manage PR labels
+  pull-requests: write
 
 on:
   issue_comment:
-    types:
-      - created
+    types: [created]
   pull_request_target:
     types: [opened, synchronize, reopened]
     paths-ignore:
@@ -25,44 +24,61 @@ jobs:
     secrets: inherit
 
   merge-pr:
-    needs: build-and-test  # Wait for build-and-test to complete
-    if: success()  # Only run if build-and-test succeeds
+    needs: build-and-test
+    if: success()
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Check if committer email is "bump-action@github"
+      - name: Check if latest committer email is "bump-action@github"
         id: check-committer
-        run: |
-          echo "Checking committer email..."
-          PR_COMMITTER_EMAIL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
-            | jq -r '.user.email')
-          echo "PR committer email: $PR_COMMITTER_EMAIL"
-          if [ "$PR_COMMITTER_EMAIL" = "bump-action@github" ]; then
-            echo "Committer email matches bump-action@github"
-            echo "should_merge=true" >> $GITHUB_ENV
-          else
-            echo "Committer email does not match bump-action@github"
-            echo "should_merge=false" >> $GITHUB_ENV
-          fi
-
-      - name: Merge Pull Request
-        if: env.should_merge == 'true'  # Only merge if email matches
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const prNumber = context.payload.pull_request.number;
-            const result = await github.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              merge_method: "squash" // Options: 'merge', 'squash', 'rebase'
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              console.log("Not a PR event. Skipping.");
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const prNumber = pr.number;
+
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner,
+              repo,
+              pull_number: prNumber
             });
-            if (result.merged) {
-              console.log(`Pull request #${prNumber} was successfully merged.`);
+
+            const latestCommit = commits[commits.length - 1];
+            const email = latestCommit.commit.committer.email;
+
+            console.log(`Latest commit email: ${email}`);
+
+            if (email === "bump-action@github") {
+              require('fs').appendFileSync(process.env.GITHUB_ENV, 'should_merge=true\n');
             } else {
-              throw new Error(`Failed to merge pull request #${prNumber}: ${result.message}`);
+              require('fs').appendFileSync(process.env.GITHUB_ENV, 'should_merge=false\n');
+            }
+
+      - name: Merge Pull Request
+        if: env.should_merge == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const prNumber = pr.number;
+
+            const result = await github.rest.pulls.merge({
+              owner,
+              repo,
+              pull_number: prNumber,
+              merge_method: "squash"
+            });
+
+            if (result.data.merged) {
+              console.log(`✅ PR #${prNumber} merged successfully.`);
+            } else {
+              throw new Error(`❌ Failed to merge PR #${prNumber}: ${result.data.message}`);
             }
