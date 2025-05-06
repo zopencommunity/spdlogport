@@ -20,65 +20,6 @@ on:
 jobs:
   build-and-test:
     if: (github.event.issue.pull_request && contains(github.event.comment.body, '/run tests')) || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request_target'
-    uses: zopencommunity/meta/.github/workflows/build_and_test.yml@main
+    uses: zopencommunity/meta/.github/workflows/build_and_test.yml@test_automerge
     secrets: inherit
 
-  merge-pr:
-    needs: build-and-test
-    if: success()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check if latest committer email is "bump-action@github"
-        id: check-committer
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pr = context.payload.pull_request;
-            if (!pr) {
-              console.log("Not a PR event. Skipping.");
-              return;
-            }
-
-            const { owner, repo } = context.repo;
-            const prNumber = pr.number;
-
-            const { data: commits } = await github.rest.pulls.listCommits({
-              owner,
-              repo,
-              pull_number: prNumber
-            });
-
-            const latestCommit = commits[commits.length - 1];
-            const email = latestCommit.commit.committer.email;
-
-            console.log(`Latest commit email: ${email}`);
-
-            if (email === "bump-action@github") {
-              require('fs').appendFileSync(process.env.GITHUB_ENV, 'should_merge=true\n');
-            } else {
-              require('fs').appendFileSync(process.env.GITHUB_ENV, 'should_merge=false\n');
-            }
-
-      - name: Merge Pull Request
-        if: env.should_merge == 'true'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pr = context.payload.pull_request;
-            const { owner, repo } = context.repo;
-            const prNumber = pr.number;
-
-            const result = await github.rest.pulls.merge({
-              owner,
-              repo,
-              pull_number: prNumber,
-              merge_method: "squash"
-            });
-
-            if (result.data.merged) {
-              console.log(`✅ PR #${prNumber} merged successfully.`);
-            } else {
-              throw new Error(`❌ Failed to merge PR #${prNumber}: ${result.data.message}`);
-            }
