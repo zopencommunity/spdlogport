@@ -24,26 +24,41 @@ jobs:
     uses: zopencommunity/meta/.github/workflows/build_and_test.yml@main
     secrets: inherit
 
-  add-label:
-    if: success()  # Runs only if the build-and-test job succeeds
+  merge-pr:
+    needs: build-and-test  # Wait for build-and-test to complete
+    if: success()  # Only run if build-and-test succeeds
     runs-on: ubuntu-latest
     steps:
-    - name: Check if committer email is "bump-action@github"
-      id: check-committer
-      run: |
-        echo "Checking committer email..."
-        COMMITTER_EMAIL=$(git log -1 --pretty=format:'%ae')
-        if [ "$COMMITTER_EMAIL" = "bump-action@github" ]; then
-          echo "Committer email matches bump-action@github"
-          echo "should_add_label=true" >> $GITHUB_ENV
-        else
-          echo "Committer email does not match bump-action@github"
-          echo "should_add_label=false" >> $GITHUB_ENV
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Add automerge label
-      if: env.should_add_label == 'true'  # Only add the label if the condition is met
-      uses: actions-ecosystem/action-add-labels@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        labels: automerge
+      - name: Check if committer email is "bump-action@github"
+        id: check-committer
+        run: |
+          echo "Checking committer email..."
+          COMMITTER_EMAIL=$(git log -1 --pretty=format:'%ae')
+          if [ "$COMMITTER_EMAIL" = "bump-action@github" ]; then
+            echo "Committer email matches bump-action@github"
+            echo "should_merge=true" >> $GITHUB_ENV
+          else
+            echo "Committer email does not match bump-action@github"
+            echo "should_merge=false" >> $GITHUB_ENV
+
+      - name: Merge Pull Request
+        if: env.should_merge == 'true'  # Only merge if email matches
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const result = await github.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              merge_method: "squash" // Options: 'merge', 'squash', 'rebase'
+            });
+            if (result.merged) {
+              console.log(`Pull request #${prNumber} was successfully merged.`);
+            } else {
+              throw new Error(`Failed to merge pull request #${prNumber}: ${result.message}`);
+            }
