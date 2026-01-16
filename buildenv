@@ -1,6 +1,6 @@
 # Update bump details accordingly. Use bump check to confirm.
 # bump: spdlog-version /SPDLOG_VERSION="(.*)"/ https://github.com/gabime/spdlog.git|semver:*
-SPDLOG_VERSION="1.16.0" # Specify a stable release
+SPDLOG_VERSION="1.17.0" # Specify a stable release
 export ZOPEN_STABLE_TAG="v${SPDLOG_VERSION}"
 export ZOPEN_STABLE_URL="https://github.com/gabime/spdlog.git"
 export ZOPEN_STABLE_DEPS="zoslib cmake make coreutils check_python"
@@ -9,7 +9,7 @@ export ZOPEN_CATEGORIES="utilities"
 export ZOPEN_COMP="clang"
 export ZOPEN_CONFIGURE="cmake"
 
-export ZOPEN_CONFIGURE_OPTS="--trace-expand -B ../build  --install-prefix \$ZOPEN_INSTALL_DIR/ -DENABLE_STATIC_INIT=ON -DZOSLIB_GENERIC=ON -DCMAKE_INSTALL_PREFIX=\$ZOPEN_INSTALL_DIR/  -DSPDLOG_NO_TLS=ON -DSPDLOG_BUILD_TESTS=ON -DSPDLOG_BUILD_EXAMPLE=OFF ."
+export ZOPEN_CONFIGURE_OPTS="-B ../build --install-prefix \$ZOPEN_INSTALL_DIR/ -DENABLE_STATIC_INIT=ON -DZOSLIB_GENERIC=ON -DCMAKE_INSTALL_PREFIX=\$ZOPEN_INSTALL_DIR/ -DSPDLOG_NO_TLS=ON -DSPDLOG_BUILD_TESTS=ON -DSPDLOG_BUILD_EXAMPLE=OFF ."
 export ZOPEN_MAKE="cmake"
 export ZOPEN_MAKE_OPTS=" --build ../build --target all"
 export ZOPEN_MAKE_MINIMAL="yes"
@@ -18,6 +18,7 @@ export ZOPEN_CHECK_OPTS="--test-dir ../build --verbose"
 
 export ZOPEN_INSTALL="cmake"
 export ZOPEN_INSTALL_OPTS="--install ../build"
+export ZOPEN_EXTRA_CPPFLAGS=" -D__XPLAT=1 -D_POSIX_C_SOURCE=200809L"
 
 zopen_append_to_env()
 {
